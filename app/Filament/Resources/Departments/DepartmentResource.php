@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class DepartmentResource extends Resource
 {
@@ -20,7 +21,7 @@ class DepartmentResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-building-office-2';
 
-    protected static string|BackedEnum|null $navigationGroup = 'Human Resources';
+    protected static string|UnitEnum|null $navigationGroup = 'Human Resources';
 
     protected static ?int $navigationSort = 1;
 
