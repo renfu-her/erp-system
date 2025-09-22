@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\Employees\Tables;
 
 use Filament\Actions\BulkActionGroup;
-use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\BadgeColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -22,65 +22,67 @@ class EmployeesTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('first_name')
-                    ->label('First Name')
-                    ->searchable()
+                TextColumn::make('full_name')
+                    ->label('Full Name')
+                    ->getStateUsing(fn ($record) => $record->full_name)
+                    ->searchable(['first_name', 'last_name'])
                     ->sortable(),
-
-                TextColumn::make('last_name')
-                    ->label('Last Name')
-                    ->searchable()
-                    ->sortable(),
-
                 TextColumn::make('email')
-                    ->label('Email')
-                    ->searchable()
-                    ->sortable(),
-
+                    ->label('Email address')
+                    ->searchable(),
                 TextColumn::make('phone')
-                    ->label('Phone')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
+                    ->searchable(),
+                TextColumn::make('date_of_birth')
+                    ->date()
+                    ->sortable(),
+                TextColumn::make('hire_date')
+                    ->date()
+                    ->sortable(),
                 TextColumn::make('department.name')
-                    ->label('Department')
-                    ->searchable()
-                    ->sortable(),
-
+                    ->searchable(),
                 TextColumn::make('position.title')
-                    ->label('Position')
-                    ->searchable()
-                    ->sortable(),
-
+                    ->searchable(),
                 TextColumn::make('salary')
                     ->label('Salary')
                     ->money('USD')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->sortable(),
 
-                TextColumn::make('status')
-                    ->label('Status')
-                    ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'active' => 'success',
-                        'inactive' => 'gray',
-                        'terminated' => 'danger',
-                        'on_leave' => 'warning',
-                    }),
+                BadgeColumn::make('status')
+                    ->colors([
+                        'success' => 'active',
+                        'warning' => 'inactive',
+                        'danger' => 'terminated',
+                        'info' => 'on_leave',
+                    ]),
 
-                TextColumn::make('hire_date')
-                    ->label('Hire Date')
-                    ->date()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
+                TextColumn::make('manager.full_name')
+                    ->label('Manager')
+                    ->placeholder('No manager assigned'),
+                TextColumn::make('emergency_contact_name')
+                    ->searchable(),
+                TextColumn::make('emergency_contact_phone')
+                    ->searchable(),
+                TextColumn::make('user_id')
+                    ->numeric()
+                    ->sortable(),
                 TextColumn::make('created_at')
-                    ->label('Created')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('updated_at')
                     ->dateTime()
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('status')
+                    ->options([
+                        'active' => 'Active',
+                        'inactive' => 'Inactive',
+                        'terminated' => 'Terminated',
+                        'on_leave' => 'On Leave',
+                    ]),
+
                 SelectFilter::make('department_id')
                     ->label('Department')
                     ->relationship('department', 'name')
@@ -92,22 +94,12 @@ class EmployeesTable
                     ->relationship('position', 'title')
                     ->searchable()
                     ->preload(),
-
-                SelectFilter::make('status')
-                    ->label('Status')
-                    ->options([
-                        'active' => 'Active',
-                        'inactive' => 'Inactive',
-                        'terminated' => 'Terminated',
-                        'on_leave' => 'On Leave',
-                    ]),
             ])
             ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
             ])
             ->toolbarActions([
-                CreateAction::make(),
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),

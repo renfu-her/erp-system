@@ -5,6 +5,10 @@ namespace App\Filament\Resources\Employees;
 use App\Filament\Resources\Employees\Pages\CreateEmployee;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\Pages\ListEmployees;
+use App\Filament\Resources\Employees\Pages\ViewEmployee;
+use App\Filament\Resources\Employees\RelationManagers\AttendancesRelationManager;
+use App\Filament\Resources\Employees\RelationManagers\LeavesRelationManager;
+use App\Filament\Resources\Employees\RelationManagers\PositionsRelationManager;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
 use App\Models\Employee;
@@ -23,7 +27,7 @@ class EmployeeResource extends Resource
 
     protected static string|UnitEnum|null $navigationGroup = 'Human Resources';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {
@@ -38,7 +42,9 @@ class EmployeeResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            PositionsRelationManager::class,
+            AttendancesRelationManager::class,
+            LeavesRelationManager::class,
         ];
     }
 
@@ -47,6 +53,7 @@ class EmployeeResource extends Resource
         return [
             'index' => ListEmployees::route('/'),
             'create' => CreateEmployee::route('/create'),
+            'view' => ViewEmployee::route('/{record}'),
             'edit' => EditEmployee::route('/{record}/edit'),
         ];
     }

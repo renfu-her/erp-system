@@ -1,0 +1,246 @@
+---
+alwaysApply: true
+---
+# ERP 人資系統－系統用到與規劃說明書（Laravel 12 + Filament v4）
+
+> 版本：v1.0｜作者：Patrick 專案草案｜目標：建立可落地的人資（HR）子系統，分期導入，快速投入日常運作並可持續擴充。
+
+---
+
+## 1. 專案總覽（Overview）
+
+**技術主軸**：Laravel 12（API + 業務邏輯）＋ Filament v4（後台管理）
+
+**要解決的核心問題**：
+
+* 員工與組織主檔一致管理（單一真相來源 Single Source of Truth）
+* 出勤與請假流程線上化、可稽核
+* 假別配額/結餘自動化
+* 逐步導入薪資與績效，最終可對接財務/會計
+
+**分期目標**：
+
+* **M1**：員工/部門/任職歷程 + 出勤 + 請假
+* **M2**：假別結餘與規則、匯入/匯出、審批通知、儀表板、附件管理、初版薪資
+* **M3**：完整薪資（稅務/勞健保）、績效、訓練、報表中心、對外 API
+
+---
+
+## 2. 系統用到（Tech Stack & Packages）
+
+### 2.1 後端框架
+
+* **Laravel 12**：Routing、Eloquent ORM、Policies、Jobs/Queues、Scheduler、Events/Listeners
+* **PHP 8.2/8.3**（依環境），Composer 管理
+
+### 2.2 後台管理
+
+* **Filament v4**：Resource CRUD、Relation Managers、Table Filters、Widgets、Actions（含多步驟/確認）、Notifications
+
+### 2.3 第三方套件（建議）
+
+* **權限**：`spatie/laravel-permission`
+* **匯入/匯出**：`maatwebsite/excel`
+* **稽核日誌**：`owen-it/laravel-auditing`
+* **附件管理**：`spatie/laravel-medialibrary`
+* **系統參數**：`spatie/laravel-settings`
+* **PDF（M3 薪資條/報表）**：`barryvdh/laravel-dompdf` 或 `knplabs/knp-snappy`
+* **作業日曆/商務日**：`yasumi` 或自建 `holidays` 表
+
+### 2.4 資料庫與中介層
+
+* **MySQL 8.x**（InnoDB, utf8mb4）
+* **Redis**（快取、Queue）
+
+### 2.5 前後台整合與通知
+
+* **Mail**（SMTP / 企業信箱）、**Slack/LINE Notify**（審批/提醒），**Webhooks**（對接打卡機/外部系統）
+
+### 2.6 部署/營運
+
+* **Nginx + PHP-FPM**，**Supervisor**（Queue）、**CRON**（Scheduler）
+* **CI/CD**：GitHub Actions/GitLab CI（自動部署、Migration、Cache、Health Check）
+* **監控**：Sentry（錯誤）、Uptime Kuma/Healthchecks（排程監控）
+
+---
+
+## 3. 功能範圍與里程碑（Scope & Milestones）
+
+### M1：核心基礎（可投入日常）
+
+* 員工主檔（Employee）、部門（Department）、任職/調職歷程（Position History）
+* 出勤紀錄（Attendance）
+* 請假申請（Leave）單步審批（直屬主管）
+
+### M2：進階管理
+
+* 假別結餘與規則（年度配額、每月累進、年度結轉）
+* 匯入/匯出（員工主檔、出勤、假單、薪資）
+* 多步驟審批（主管→HR）＋ 通知（Email/IM）
+* 儀表板 Widgets（缺勤率、請假使用率、待審核）
+* 附件管理（證照、契約、身分文件）
+* 初版薪資（期間設定、薪資組件、加總計算、匯出）
+
+### M3：完整 HR 模組
+
+* 薪資完整化（稅務、勞健保、自訂公式/規則引擎、薪資條 PDF/Portal）
+* 績效考核（KPI/OKR、評核流程與表單）
+* 訓練管理（課程、時數、證照到期提醒）
+* 高階報表（加班成本、離職率、招募轉換等）
+* 對外 API（會計/財務/BI 工具）
+
+---
+
+## 4. 資料模型（最小可行設計）
+
+> 與先前 ERD 一致，補強索引與枚舉欄位。
+
+* **employees**：id, emp\_no\*, name, email, phone, hire\_date, termination\_date, employment\_type(enum), grade\_band, gender, birth\_date, status(enum: active/leave/terminated), manager\_id, dept\_id, …
+* **departments**：id, code\*, name, parent\_id, cost\_center
+* **emp\_positions**：id, employee\_id, title, dept\_id, start\_date, end\_date, is\_primary
+* **attendances**：id, employee\_id, date, checkin, checkout, overtime\_minutes, notes, source(enum: device/import/manual)
+* **leaves**：id, employee\_id, type(enum), start\_at, end\_at, hours, status(enum: draft/pending/approved/rejected/cancelled), approver\_id, approved\_at, reason
+* **leave\_balances**：id, employee\_id, type, year, allocated\_hours, used\_hours, carryover\_hours
+* **payrolls**：id, period(YYYY-MM), status(draft/locked), closed\_at
+* **payroll\_items**：id, payroll\_id, employee\_id, component(enum: base/allowance/deduction/bonus/… ), amount, memo
+
+**索引建議**：employees(emp\_no), emp\_positions(employee\_id,start\_date desc), attendances(employee\_id,date), leaves(employee\_id,start\_at), payroll\_items(payroll\_id,employee\_id)
+
+---
+
+## 5. 權限與資料可見性（RBAC + Policies）
+
+* 角色：`HR.Admin`, `HR.Manager`, `HR.Staff`, `Payroll.Admin`
+* 權限範例：`employee.view`, `employee.edit`, `leave.apply`, `leave.approve`, `payroll.run`
+* 資料範圍：Manager 僅能看「自己部門（含子部門）」員工；Staff 只能看自己資料與申請
+* Filament 中以 `->visible()`/`->hidden()`、Table Filters 控制 UI 顯示；Eloquent Policy 保證資料層安全
+
+---
+
+## 6. 核心流程（Workflow）
+
+### 6.1 請假流程（M1→M2）
+
+1. 員工新增請假 → 驗證可用時數（M2）→ 送審（pending）
+2. 直屬主管審批（approve/reject）→ 通知申請人
+3. （M2）如設定 HR 二簽：主管核准後 → HR 終審 → 扣除 `leave_balances`
+
+### 6.2 出勤匯入/補卡
+
+* Scheduler 定時匯入打卡機紀錄（或 CSV 上傳）
+* 缺卡由員工「補卡申請」，走相同審批流，來源 `source=manual`
+
+### 6.3 薪資（M2 初版 → M3 完整）
+
+* 建立期間（例如 2025-09）→ 綁員工薪資組件 → 執行計算（M2：加總；M3：公式/稅務）→ 鎖定 → 匯出/通知
+
+---
+
+## 7. 介面與頁面（Filament v4）
+
+* **EmployeeResource**：列表（搜尋/篩選）、表單（基本/聯絡/雇用/附件 Tabs）、Relations（Positions/Leaves/Attendances）
+* **DepartmentResource**：樹狀/階層顯示，統計（人數、缺勤率）
+* **AttendanceResource**：日期範圍、缺卡/加班過濾、補卡申請 Action
+* **LeaveResource**：建立申請、即時計算剩餘（M2）、Approve/Reject Actions
+* **LeaveBalanceResource（M2）**：查詢員工假別結餘、批次調整
+* **PayrollResource（M2→M3）**：薪資組件設定、期間鎖定、PDF 下載（M3）
+* **Dashboard Widgets**：請假待審核、缺勤率、本月加班、部門人數
+
+---
+
+## 8. 整合與資料交換
+
+* **打卡機**：支援 CSV、SFTP、或裝置 API；建 `attendance:import` 指令 + Scheduler
+* **通知**：Mail（申請/核准/退回）、Slack/LINE（即時提醒）
+* **會計/財務**：薪資匯出 CSV/Excel；M3 提供 REST API 或 SFTP 丟檔
+* **BI**：外掛 Metabase/Power BI 讀庫（唯讀帳號 + 視圖）
+
+---
+
+## 9. 部署架構與環境
+
+* **環境**：Dev / Staging / Prod（獨立 DB 與檔案儲存）
+* **雲端**：Ubuntu + Nginx + PHP-FPM；Redis；MySQL；Object Storage（附件/薪資單）
+* **網域/SSL**：Cloudflare DNS + Let’s Encrypt
+* **備援**：DB 主從或雲服務備援（可第二階段規劃）
+
+---
+
+## 10. CI/CD 與營運
+
+* **CI**：自動測試（Feature/Policy/Service）、Lint（PHP-CS-Fixer）
+* **CD**：自動部署（`composer install --no-dev`、`php artisan migrate --force`、`php artisan cache:clear`）
+* **Queue**：Supervisor 常駐；**Scheduler**：CRON 每分鐘觸發 Laravel 任務
+* **備份**：每日 DB 備份 + 7/30 天保留；附件備份（Object Storage 版本化）
+* **監控**：Sentry、健康檢查（/healthz）
+
+---
+
+## 11. 安全與合規
+
+* RBAC + Policies（最小權限）
+* 審計軌跡：`laravel-auditing` 記錄敏感異動（薪資、職位、假單狀態）
+* 隱私：薪資/證照/身分證檔案須加權限與存取控制（簽章 URL 或後端串流）
+* 加密：環境變數保護，敏感欄位可選擇加密（如身分證字號）
+
+---
+
+## 12. 在地化與規章
+
+* 語系：`lang/zh_TW`，日期/數字本地化；前端以繁中 Label
+* 假日：台灣行政院行事曆匯入 `holidays` 表，作為工時/年假基礎
+* 內規：將公司請假/加班/補休政策建模為「規則策略（Strategy）」
+
+---
+
+## 13. 測試策略
+
+* **單元**：規則引擎（假別、薪資計算）
+* **整合**：請假流程（申請→審批→結餘扣減）
+* **權限**：Manager/Staff 資料可見性
+* **E2E（選配）**：Filament 操作關鍵路徑
+
+---
+
+## 14. 風險與緩解
+
+* **政策差異**：不同部門/資歷規則差異大 → 以策略模式抽象、以設定檔/DB 表驅動
+* **資料正規化**：舊資料匯入品質不一 → 建置匯入驗證與試跑環境
+* **權限錯置**：薪資/個資敏感 → 嚴格 Policy + 稽核日誌 + 最小權限原則
+* **效能**：大量查詢/報表 → 加索引、使用查詢視圖、報表夜間批次
+
+---
+
+## 15. 驗收準則（Definition of Done）
+
+* M1：員工/部門/出勤/請假可正常 CRUD 與審批；Manager 僅見本部門數據；提供最小報表（CSV）
+* M2：假別結餘自動化、通知到位、儀表板可用、附件安全；初版薪資可出檔
+* M3：薪資完整（稅務/勞健保）、績效/訓練可運作；對外 API 與報表中心穩定
+
+---
+
+## 16. 三期 Roadmap（摘要）
+
+```mermaid
+gantt
+    title ERP HR Roadmap
+    dateFormat  YYYY-MM
+    section M1 基礎
+    Employee/Dept/Leave/Attendance :done, m1, 2025-09, 1m
+    section M2 進階
+    Leave Balance/Rules & Import/Export/Notifications :active, m2, 2025-10, 1-2m
+    Dashboard & Attachments & Payroll Basic : m2b, 2025-11, 1m
+    section M3 完整
+    Full Payroll/Performance/Training/Reports/API : m3, 2025-12, 2-3m
+```
+
+---
+
+## 17. 後續行動（Next Steps）
+
+1. 建立專案骨架與套件安裝，初始化 `spatie/permission` 角色/權限 Seeder
+2. 產出 **Employee/Department/Leave/Attendance** 的 Migration + Model + Filament Resources
+3. 設計 **請假審批 Actions** 與 **Scheduler**（出勤匯入、假別結轉）
+4. M2 開始：導入 `leave_balances` + 匯入/匯出 + 通知 + Widgets + 附件；建立 **初版薪資** 期間/組件/計算
+
+> 需要的話，我可以在此文件基礎上，追加「範例 Migration/Model/Resource 種子碼」與「權限/Seeder 範本」，讓你 `migrate --seed` 後直接進入 M1。

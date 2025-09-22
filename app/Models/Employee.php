@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -61,5 +62,37 @@ class Employee extends Model
     public function getFullNameAttribute(): string
     {
         return "{$this->first_name} {$this->last_name}";
+    }
+
+    /**
+     * Get the attendance records for the employee.
+     */
+    public function attendances(): HasMany
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    /**
+     * Get the leave requests for the employee.
+     */
+    public function leaves(): HasMany
+    {
+        return $this->hasMany(Leave::class);
+    }
+
+    /**
+     * Get the employees managed by this employee.
+     */
+    public function subordinates(): HasMany
+    {
+        return $this->hasMany(Employee::class, 'manager_id');
+    }
+
+    /**
+     * Get the manager of this employee.
+     */
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'manager_id');
     }
 }

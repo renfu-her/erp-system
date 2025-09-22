@@ -2,13 +2,11 @@
 
 namespace App\Filament\Resources\Employees\Schemas;
 
-use App\Models\Department;
-use App\Models\Position;
-use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
 class EmployeeForm
@@ -18,75 +16,30 @@ class EmployeeForm
         return $schema
             ->components([
                 TextInput::make('employee_id')
-                    ->required()
-                    ->maxLength(255)
-                    ->label('Employee ID')
-                    ->unique(ignoreRecord: true),
-
+                    ->required(),
                 TextInput::make('first_name')
-                    ->required()
-                    ->maxLength(255)
-                    ->label('First Name'),
-
+                    ->required(),
                 TextInput::make('last_name')
-                    ->required()
-                    ->maxLength(255)
-                    ->label('Last Name'),
-
+                    ->required(),
                 TextInput::make('email')
+                    ->label('Email address')
                     ->email()
-                    ->required()
-                    ->maxLength(255)
-                    ->unique(ignoreRecord: true)
-                    ->label('Email Address'),
-
+                    ->required(),
                 TextInput::make('phone')
-                    ->tel()
-                    ->maxLength(255)
-                    ->label('Phone Number'),
-
+                    ->tel(),
                 Textarea::make('address')
-                    ->label('Address')
-                    ->rows(3)
                     ->columnSpanFull(),
-
-                DatePicker::make('date_of_birth')
-                    ->label('Date of Birth')
-                    ->maxDate(now()),
-
+                DatePicker::make('date_of_birth'),
                 DatePicker::make('hire_date')
-                    ->required()
-                    ->label('Hire Date')
-                    ->default(now()),
-
+                    ->required(),
                 Select::make('department_id')
-                    ->label('Department')
                     ->relationship('department', 'name')
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->reactive(),
-
+                    ->required(),
                 Select::make('position_id')
-                    ->label('Position')
                     ->relationship('position', 'title')
-                    ->searchable()
-                    ->preload()
-                    ->required()
-                    ->options(function (callable $get) {
-                        $departmentId = $get('department_id');
-                        if (!$departmentId) {
-                            return Position::all()->pluck('title', 'id');
-                        }
-                        return Position::where('department_id', $departmentId)->pluck('title', 'id');
-                    }),
-
+                    ->required(),
                 TextInput::make('salary')
-                    ->numeric()
-                    ->prefix('$')
-                    ->step(0.01)
-                    ->label('Salary'),
-
+                    ->numeric(),
                 Select::make('status')
                     ->label('Status')
                     ->options([
@@ -95,24 +48,20 @@ class EmployeeForm
                         'terminated' => 'Terminated',
                         'on_leave' => 'On Leave',
                     ])
-                    ->default('active')
-                    ->required(),
+                    ->required()
+                    ->default('active'),
 
-                TextInput::make('emergency_contact_name')
-                    ->maxLength(255)
-                    ->label('Emergency Contact Name'),
-
-                TextInput::make('emergency_contact_phone')
-                    ->tel()
-                    ->maxLength(255)
-                    ->label('Emergency Contact Phone'),
-
-                Select::make('user_id')
-                    ->label('User Account')
-                    ->relationship('user', 'name')
+                Select::make('manager_id')
+                    ->label('Manager')
+                    ->relationship('manager', 'first_name')
                     ->searchable()
                     ->preload()
                     ->nullable(),
+                TextInput::make('emergency_contact_name'),
+                TextInput::make('emergency_contact_phone')
+                    ->tel(),
+                TextInput::make('user_id')
+                    ->numeric(),
             ]);
     }
 }
