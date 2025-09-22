@@ -38,8 +38,6 @@ class EmployeeForm
                 Select::make('position_id')
                     ->relationship('position', 'title')
                     ->required(),
-                TextInput::make('salary')
-                    ->numeric(),
                 Select::make('status')
                     ->label('Status')
                     ->options([

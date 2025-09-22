@@ -42,8 +42,9 @@ class EmployeesTable
                     ->searchable(),
                 TextColumn::make('position.title')
                     ->searchable(),
-                TextColumn::make('salary')
-                    ->label('Salary')
+                TextColumn::make('total_salary')
+                    ->label('Total Salary')
+                    ->getStateUsing(fn ($record) => $record->total_salary)
                     ->money('USD')
                     ->sortable(),
 

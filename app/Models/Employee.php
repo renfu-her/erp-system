@@ -95,4 +95,36 @@ class Employee extends Model
     {
         return $this->belongsTo(Employee::class, 'manager_id');
     }
+
+    /**
+     * Get the salary components for the employee.
+     */
+    public function salaries(): HasMany
+    {
+        return $this->hasMany(EmployeeSalary::class);
+    }
+
+    /**
+     * Get the active salary components for the employee.
+     */
+    public function activeSalaries(): HasMany
+    {
+        return $this->hasMany(EmployeeSalary::class)->where('is_active', true);
+    }
+
+    /**
+     * Get the current total salary for the employee.
+     */
+    public function getTotalSalaryAttribute(): float
+    {
+        return $this->activeSalaries()->sum('salary');
+    }
+
+    /**
+     * Get the current salary components for the employee.
+     */
+    public function getCurrentSalariesAttribute()
+    {
+        return $this->activeSalaries()->orderBy('name')->get();
+    }
 }

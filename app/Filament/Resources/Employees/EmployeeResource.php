@@ -9,6 +9,7 @@ use App\Filament\Resources\Employees\Pages\ViewEmployee;
 use App\Filament\Resources\Employees\RelationManagers\AttendancesRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\LeavesRelationManager;
 use App\Filament\Resources\Employees\RelationManagers\PositionsRelationManager;
+use App\Filament\Resources\Employees\RelationManagers\SalariesRelationManager;
 use App\Filament\Resources\Employees\Schemas\EmployeeForm;
 use App\Filament\Resources\Employees\Tables\EmployeesTable;
 use App\Models\Employee;
@@ -43,6 +44,7 @@ class EmployeeResource extends Resource
     {
         return [
             PositionsRelationManager::class,
+            SalariesRelationManager::class,
             AttendancesRelationManager::class,
             LeavesRelationManager::class,
         ];
